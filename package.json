@@ -1,6 +1,12 @@
 {
   "name": "bncc-inteligente",
   "version": "1.0.0",
+  "scripts": {
+    "build": "echo done"
+  }
+}{
+  "name": "bncc-inteligente",
+  "version": "1.0.0",
   "private": true,
   "dependencies": {
     "react": "^18.2.0",
