@@ -1,1 +1,282 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BNCC Inteligente</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{min-height:100vh;background:linear-gradient(160deg,#f0f9ff 0%,#fafafa 50%,#f5f3ff 100%);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;color:#111827}
+    .top-bar{height:5px;background:linear-gradient(90deg,#f97316,#eab308,#3b82f6,#8b5cf6,#10b981)}
+    .container{max-width:940px;margin:0 auto;padding:0 1.2rem 4rem}
+    textarea,select,input{font-family:inherit}
+    @keyframes spin{to{transform:rotate(360deg)}}
+  </style>
+</head>
+<body>
+<div class="top-bar"></div>
+<div class="container" id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+const etapasEscolares = [
+  { label: "Educacao Infantil - Bebes (0 a 1 ano e 6 meses)", value: "bebe", cor: "#f97316" },
+  { label: "Educacao Infantil - Criancas bem pequenas (1a7m a 3a11m)", value: "crianca_pequena", cor: "#f97316" },
+  { label: "Educacao Infantil - Criancas pequenas (4 a 5 anos e 11 meses)", value: "crianca_pre", cor: "#f97316" },
+  { label: "Ensino Fundamental I - 1 ano (6 anos)", value: "ef1", cor: "#3b82f6" },
+  { label: "Ensino Fundamental I - 2 ano (7 anos)", value: "ef2", cor: "#3b82f6" },
+  { label: "Ensino Fundamental I - 3 ano (8 anos)", value: "ef3", cor: "#3b82f6" },
+  { label: "Ensino Fundamental I - 4 ano (9 anos)", value: "ef4", cor: "#3b82f6" },
+  { label: "Ensino Fundamental I - 5 ano (10 anos)", value: "ef5", cor: "#3b82f6" },
+  { label: "Ensino Fundamental II - 6 ano (11 anos)", value: "ef6", cor: "#8b5cf6" },
+  { label: "Ensino Fundamental II - 7 ano (12 anos)", value: "ef7", cor: "#8b5cf6" },
+  { label: "Ensino Fundamental II - 8 ano (13 anos)", value: "ef8", cor: "#8b5cf6" },
+  { label: "Ensino Fundamental II - 9 ano (14 anos)", value: "ef9", cor: "#8b5cf6" },
+  { label: "Ensino Medio - 1 serie (15 anos)", value: "em1", cor: "#10b981" },
+  { label: "Ensino Medio - 2 serie (16 anos)", value: "em2", cor: "#10b981" },
+  { label: "Ensino Medio - 3 serie (17 anos)", value: "em3", cor: "#10b981" },
+];
+const areas = ["Todas as areas","Linguagens","Matematica","Ciencias da Natureza","Ciencias Humanas","Ensino Religioso"];
+const etapaGrupos = [
+  { label: "Ed. Infantil", cor: "#f97316", icon: "🌱" },
+  { label: "Fund. I", cor: "#3b82f6", icon: "📗" },
+  { label: "Fund. II", cor: "#8b5cf6", icon: "📘" },
+  { label: "Medio", cor: "#10b981", icon: "🎓" },
+];
+const STORAGE_KEY = "bncc_historico";
+
+function BNCCApp() {
+  const [tab, setTab] = useState("busca");
+  const [atividade, setAtividade] = useState("");
+  const [etapa, setEtapa] = useState("");
+  const [area, setArea] = useState("Todas as areas");
+  const [resultado, setResultado] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [historico, setHistorico] = useState([]);
+  const [selectedHistorico, setSelectedHistorico] = useState(null);
+  const [searchHistorico, setSearchHistorico] = useState("");
+  const resultadoRef = useRef(null);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) setHistorico(JSON.parse(stored));
+    } catch(e) {}
+  }, []);
+
+  function salvarHistorico(item) {
+    try {
+      const novo = [item, ...historico];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(novo));
+      setHistorico(novo);
+    } catch(e) {}
+  }
+
+  function deletarItem(timestamp) {
+    try {
+      const novo = historico.filter(h => h.timestamp !== timestamp);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(novo));
+      setHistorico(novo);
+      if (selectedHistorico && selectedHistorico.timestamp === timestamp) setSelectedHistorico(null);
+    } catch(e) {}
+  }
+
+  const etapaObj = etapasEscolares.find(f => f.value === etapa);
+  const etapaLabel = etapaObj ? etapaObj.label : "";
+  const etapaCor = etapaObj ? etapaObj.cor : "#3b82f6";
+
+  async function buscar() {
+    if (!atividade.trim() || !etapa) return;
+    setLoading(true);
+    setResultado(null);
+    const areaFiltro = area !== "Todas as areas" ? "Foco na area: " + area + "." : "";
+    const prompt = "Voce e um especialista em educacao e na Base Nacional Comum Curricular (BNCC) do Brasil.\n\nO professor quer trabalhar a seguinte atividade ou objetivo:\n" + atividade + "\n\nEtapa Escolar: " + etapaLabel + "\n" + areaFiltro + "\n\nSua tarefa:\n1. Identifique as habilidades da BNCC mais relevantes.\n2. Para cada habilidade, forneca: Codigo, Descricao completa, Area/componente curricular, Relacao com a atividade.\n3. Sugira objetivos de aprendizagem alinhados.\n4. Se for Educacao Infantil, use os Campos de Experiencia.\n\nFormate em Markdown claro. Use codigos e textos reais da BNCC.";
+    try {
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1000, messages: [{ role: "user", content: prompt }] })
+      });
+      const data = await response.json();
+      const texto = data.content ? data.content.map(b => b.text || "").join("") : "Sem resposta.";
+      const novoItem = { timestamp: Date.now(), atividade, etapa: etapaLabel, etapaCor, area, resultado: texto };
+      setResultado(novoItem);
+      salvarHistorico(novoItem);
+      setTimeout(() => { if(resultadoRef.current) resultadoRef.current.scrollIntoView({ behavior: "smooth" }); }, 100);
+    } catch(e) {
+      setResultado({ erro: true });
+    }
+    setLoading(false);
+  }
+
+  function formatarData(ts) {
+    return new Date(ts).toLocaleString("pt-BR", { day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" });
+  }
+
+  function renderMarkdown(text) {
+    return text
+      .replace(/^### (.+)$/gm, '<h3 style="color:#1e40af;font-size:1rem;font-weight:700;margin:1.2rem 0 0.4rem">$1</h3>')
+      .replace(/^## (.+)$/gm, '<h2 style="color:#1d4ed8;font-size:1.1rem;font-weight:800;margin:1.5rem 0 0.5rem;border-bottom:2px solid #dbeafe;padding-bottom:0.4rem">$1</h2>')
+      .replace(/^# (.+)$/gm, '<h1 style="color:#1e3a8a;font-size:1.25rem;font-weight:900;margin:0 0 1rem">$1</h1>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong style="color:#1e40af;font-weight:700">$1</strong>')
+      .replace(/`(.+?)`/g, '<code style="background:#eff6ff;color:#1d4ed8;padding:0.1rem 0.4rem;border-radius:5px;font-family:monospace;font-size:0.85em">$1</code>')
+      .replace(/^- (.+)$/gm, '<li style="margin:0.3rem 0 0.3rem 1.2rem;color:#374151;list-style:disc">$1</li>')
+      .replace(/\n\n/g, '</p><p style="margin:0.6rem 0;color:#374151;line-height:1.75">')
+      .replace(/\n/g, '<br/>');
+  }
+
+  const filteredHistorico = historico.filter(h =>
+    (h.atividade && h.atividade.toLowerCase().includes(searchHistorico.toLowerCase())) ||
+    (h.etapa && h.etapa.toLowerCase().includes(searchHistorico.toLowerCase()))
+  );
+
+  const cardStyle = { background:"#fff", border:"1px solid #e5e7eb", borderRadius:"16px", padding:"1.8rem", boxShadow:"0 2px 12px rgba(0,0,0,0.06)" };
+  const inputStyle = { width:"100%", background:"#f9fafb", border:"1.5px solid #e5e7eb", borderRadius:"10px", padding:"0.75rem 1rem", color:"#111827", fontSize:"0.88rem", outline:"none" };
+
+  return (
+    <div>
+      <header style={{ padding:"1.8rem 0 1.4rem", display:"flex", alignItems:"center", gap:"1.2rem", flexWrap:"wrap" }}>
+        <div style={{ width:50, height:50, borderRadius:"14px", background:"linear-gradient(135deg,#3b82f6,#8b5cf6)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"1.5rem", boxShadow:"0 4px 14px rgba(59,130,246,0.3)" }}>📚</div>
+        <div>
+          <h1 style={{ margin:0, fontSize:"clamp(1.4rem,4vw,1.9rem)", fontWeight:900, background:"linear-gradient(135deg,#1d4ed8,#7c3aed)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent" }}>BNCC Inteligente</h1>
+          <p style={{ margin:"0.1rem 0 0", color:"#6b7280", fontSize:"0.85rem" }}>Encontre habilidades da BNCC com inteligencia artificial</p>
+        </div>
+        <div style={{ marginLeft:"auto", display:"flex", gap:"0.4rem", flexWrap:"wrap", justifyContent:"flex-end" }}>
+          {etapaGrupos.map(g => (
+            <span key={g.label} style={{ background:g.cor+"18", color:g.cor, border:"1px solid "+g.cor+"35", borderRadius:"20px", padding:"0.2rem 0.7rem", fontSize:"0.7rem", fontWeight:700 }}>{g.icon} {g.label}</span>
+          ))}
+        </div>
+      </header>
+
+      <div style={{ display:"flex", marginBottom:"1.8rem", background:"#fff", border:"1px solid #e5e7eb", borderRadius:"12px", padding:"0.3rem", boxShadow:"0 1px 4px rgba(0,0,0,0.06)" }}>
+        {[{id:"busca",label:"🔍 Nova Busca"},{id:"historico",label:"📋 Historico" + (historico.length > 0 ? " ("+historico.length+")" : "")}].map(t => (
+          <button key={t.id} onClick={() => { setTab(t.id); setSelectedHistorico(null); }}
+            style={{ flex:1, padding:"0.6rem 1rem", borderRadius:"9px", border:"none", cursor:"pointer", fontSize:"0.9rem", fontWeight:600, background:tab===t.id?"linear-gradient(135deg,#3b82f6,#6d28d9)":"transparent", color:tab===t.id?"#fff":"#6b7280", boxShadow:tab===t.id?"0 2px 8px rgba(59,130,246,0.28)":"none" }}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "busca" && (
+        <div>
+          <div style={cardStyle}>
+            <div style={{ marginBottom:"1.2rem" }}>
+              <label style={{ display:"block", color:"#374151", fontSize:"0.8rem", fontWeight:700, textTransform:"uppercase", marginBottom:"0.5rem" }}>✏️ Atividade ou Objetivo Pedagogico</label>
+              <textarea value={atividade} onChange={e => setAtividade(e.target.value)}
+                placeholder="Ex: Trabalhar interpretacao de texto com fabulas; Desenvolver raciocinio logico..."
+                rows={4} style={{ ...inputStyle, resize:"vertical", lineHeight:1.65 }}
+                onFocus={e => { e.target.style.borderColor="#3b82f6"; }}
+                onBlur={e => { e.target.style.borderColor="#e5e7eb"; }} />
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"1.5fr 1fr", gap:"1rem", marginBottom:"1.5rem" }}>
+              <div>
+                <label style={{ display:"block", color:"#374151", fontSize:"0.8rem", fontWeight:700, textTransform:"uppercase", marginBottom:"0.5rem" }}>🏫 Etapa Escolar</label>
+                <select value={etapa} onChange={e => setEtapa(e.target.value)} style={inputStyle}
+                  onFocus={e => e.target.style.borderColor="#8b5cf6"}
+                  onBlur={e => e.target.style.borderColor="#e5e7eb"}>
+                  <option value="">Selecione a etapa...</option>
+                  <optgroup label="Educacao Infantil">
+                    {etapasEscolares.filter(e => ["bebe","crianca_pequena","crianca_pre"].includes(e.value)).map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                  </optgroup>
+                  <optgroup label="Ensino Fundamental I">
+                    {etapasEscolares.filter(e => ["ef1","ef2","ef3","ef4","ef5"].includes(e.value)).map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                  </optgroup>
+                  <optgroup label="Ensino Fundamental II">
+                    {etapasEscolares.filter(e => ["ef6","ef7","ef8","ef9"].includes(e.value)).map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                  </optgroup>
+                  <optgroup label="Ensino Medio">
+                    {etapasEscolares.filter(e => ["em1","em2","em3"].includes(e.value)).map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                  </optgroup>
+                </select>
+              </div>
+              <div>
+                <label style={{ display:"block", color:"#374151", fontSize:"0.8rem", fontWeight:700, textTransform:"uppercase", marginBottom:"0.5rem" }}>📐 Area do Conhecimento</label>
+                <select value={area} onChange={e => setArea(e.target.value)} style={inputStyle}
+                  onFocus={e => e.target.style.borderColor="#10b981"}
+                  onBlur={e => e.target.style.borderColor="#e5e7eb"}>
+                  {areas.map(a => <option key={a} value={a}>{a}</option>)}
+                </select>
+              </div>
+            </div>
+            <button onClick={buscar} disabled={loading || !atividade.trim() || !etapa}
+              style={{ width:"100%", padding:"0.9rem", border:"none", borderRadius:"10px", background:loading||!atividade.trim()||!etapa?"#f3f4f6":"linear-gradient(135deg,#3b82f6,#7c3aed)", color:loading||!atividade.trim()||!etapa?"#9ca3af":"#fff", fontSize:"1rem", fontWeight:700, cursor:loading||!atividade.trim()||!etapa?"not-allowed":"pointer", boxShadow:loading||!atividade.trim()||!etapa?"none":"0 4px 14px rgba(59,130,246,0.32)" }}>
+              {loading ? "Consultando a BNCC com IA..." : "🔍 Buscar Habilidades BNCC"}
+            </button>
+          </div>
+
+          {resultado && !resultado.erro && (
+            <div ref={resultadoRef} style={{ marginTop:"1.8rem", background:"#fff", border:"1px solid #e5e7eb", borderRadius:"16px", overflow:"hidden", boxShadow:"0 2px 12px rgba(0,0,0,0.07)" }}>
+              <div style={{ padding:"1rem 1.5rem", borderBottom:"1px solid #f3f4f6", background:"linear-gradient(135deg,#eff6ff,#f5f3ff)", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                <div>
+                  <div style={{ color:"#1e40af", fontWeight:800, fontSize:"0.88rem" }}>Habilidades BNCC Encontradas</div>
+                  <div style={{ fontSize:"0.76rem", color:"#6b7280" }}>{resultado.area} - {resultado.etapa && resultado.etapa.split("-")[0].trim()}</div>
+                </div>
+                <span style={{ background:"#dcfce7", color:"#16a34a", border:"1px solid #bbf7d0", borderRadius:"20px", padding:"0.25rem 0.8rem", fontSize:"0.74rem", fontWeight:700 }}>Salvo</span>
+              </div>
+              <div style={{ padding:"1.5rem" }}>
+                <div style={{ background:"#fffbeb", border:"1px solid #fde68a", borderRadius:"8px", padding:"0.7rem 1rem", marginBottom:"1.2rem", fontSize:"0.88rem", color:"#92400e", fontStyle:"italic" }}>"{resultado.atividade}"</div>
+                <div dangerouslySetInnerHTML={{ __html:"<p style='margin:0.5rem 0;color:#374151;line-height:1.75'>"+renderMarkdown(resultado.resultado)+"</p>" }} />
+              </div>
+            </div>
+          )}
+          {resultado && resultado.erro && (
+            <div style={{ marginTop:"1.5rem", padding:"1rem 1.5rem", background:"#fef2f2", border:"1px solid #fecaca", borderRadius:"12px", color:"#991b1b" }}>Erro ao consultar. Tente novamente.</div>
+          )}
+        </div>
+      )}
+
+      {tab === "historico" && (
+        <div style={{ display:"grid", gridTemplateColumns:selectedHistorico?"320px 1fr":"1fr", gap:"1.2rem" }}>
+          <div>
+            <input value={searchHistorico} onChange={e => setSearchHistorico(e.target.value)} placeholder="🔎 Filtrar historico..."
+              style={{ ...inputStyle, marginBottom:"1rem", display:"block" }} />
+            {filteredHistorico.length === 0 ? (
+              <div style={{ textAlign:"center", padding:"3rem", background:"#fff", border:"1px solid #e5e7eb", borderRadius:"16px", color:"#6b7280" }}>
+                {historico.length === 0 ? "Nenhuma busca realizada ainda." : "Nenhum resultado."}
+              </div>
+            ) : (
+              <div style={{ display:"flex", flexDirection:"column", gap:"0.5rem" }}>
+                {filteredHistorico.map(h => (
+                  <div key={h.timestamp} onClick={() => setSelectedHistorico(h)}
+                    style={{ padding:"0.95rem 1.1rem", background:selectedHistorico && selectedHistorico.timestamp===h.timestamp?"#eff6ff":"#fff", border:"1.5px solid "+(selectedHistorico && selectedHistorico.timestamp===h.timestamp?"#93c5fd":"#e5e7eb"), borderRadius:"12px", cursor:"pointer", position:"relative" }}>
+                    <div style={{ fontSize:"0.88rem", color:"#111827", fontWeight:600, marginBottom:"0.4rem", paddingRight:"1.5rem", overflow:"hidden" }}>{h.atividade}</div>
+                    <div style={{ display:"flex", gap:"0.5rem", alignItems:"center" }}>
+                      <span style={{ background:(h.etapaCor||"#3b82f6")+"18", color:h.etapaCor||"#3b82f6", border:"1px solid "+(h.etapaCor||"#3b82f6")+"35", borderRadius:"20px", padding:"0.1rem 0.55rem", fontSize:"0.68rem", fontWeight:700 }}>
+                        {h.etapa && h.etapa.split("-")[0].trim()}
+                      </span>
+                      <span style={{ fontSize:"0.7rem", color:"#9ca3af" }}>{formatarData(h.timestamp)}</span>
+                    </div>
+                    <button onClick={e => { e.stopPropagation(); deletarItem(h.timestamp); }}
+                      style={{ position:"absolute", top:"0.7rem", right:"0.7rem", background:"none", border:"none", cursor:"pointer", color:"#d1d5db", fontSize:"0.9rem", padding:"0.15rem 0.35rem", borderRadius:"5px" }}>✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          {selectedHistorico && (
+            <div style={{ background:"#fff", border:"1px solid #e5e7eb", borderRadius:"16px", overflow:"hidden", maxHeight:"78vh", overflowY:"auto" }}>
+              <div style={{ padding:"1rem 1.5rem", borderBottom:"1px solid #f3f4f6", background:"linear-gradient(135deg,#eff6ff,#f5f3ff)", display:"flex", alignItems:"center", gap:"0.8rem", position:"sticky", top:0 }}>
+                <div style={{ flex:1 }}>
+                  <div style={{ color:"#1e40af", fontWeight:800, fontSize:"0.85rem" }}>{selectedHistorico.etapa && selectedHistorico.etapa.split("-")[0].trim()}</div>
+                  <div style={{ fontSize:"0.74rem", color:"#6b7280" }}>{formatarData(selectedHistorico.timestamp)}</div>
+                </div>
+                <button onClick={() => setSelectedHistorico(null)} style={{ background:"none", border:"none", cursor:"pointer", color:"#9ca3af", fontSize:"1rem" }}>✕</button>
+              </div>
+              <div style={{ padding:"1.5rem" }}>
+                <div style={{ background:"#fffbeb", border:"1px solid #fde68a", borderRadius:"8px", padding:"0.65rem 1rem", marginBottom:"1.2rem", fontSize:"0.88rem", color:"#92400e", fontStyle:"italic" }}>"{selectedHistorico.atividade}"</div>
+                <div dangerouslySetInnerHTML={{ __html:"<p style='margin:0.5rem 0;color:#374151;line-height:1.75'>"+renderMarkdown(selectedHistorico.resultado)+"</p>" }} />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<BNCCApp />);
+</script>
+</body>
+</html>
 {"name":"bncc","version":"1.0.0","scripts":{"build":"echo done"}}
