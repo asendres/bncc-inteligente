@@ -1,1 +1,10 @@
-{"name":"bncc","version":"1.0.0","scripts":{"build":"echo done"}}
+{
+  "name": "bncc-inteligente",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "echo done"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0"
+  }
+}{"name":"bncc","version":"1.0.0","scripts":{"build":"echo done"}}
